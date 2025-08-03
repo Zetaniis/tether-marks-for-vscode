@@ -33,7 +33,39 @@
         "command": "tether-marks-for-vscode.delete-mark",
         "title": "Tether marks: Delete mark"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Tether Marks Settings",
+      "properties": {
+        "tetherMarks.registerList": {
+          "type": "string",
+          "default": "qazwsxedcrfvtgbyhnujmikolp",
+          "description": "Key symbols to be used as registers. Only include symbols that you can input with a single keystroke."
+
+        },
+        "tetherMarks.registerSortByList":  {
+          "type": "boolean",
+          "default": false,
+          "description": "Sort marks by the order of the key symbols in the register list. If disabled, marks will be sorted alphabetically according to the current locale."
+        },
+        "tetherMarks.harpoonRegisterList": {
+          "type": "string",
+          "default": "qwer",
+          "description": "Key symbols to be used as Harpoon registers. Only include symbols that you can input with a single keystroke."
+        },
+        "tetherMarks.harpoonRegisterSortByList": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sort Harpoon marks by the order of the key symbols in the Harpoon register list. If disabled, marks will be sorted alphabetically according to the current locale."
+        },
+        "tetherMarks.harpoonRegisterGapRemoval": {
+          "type": "boolean",
+          "default": true,
+          "description": "Harpoon marks will be shifted to the left for every gap (register with no mark) based on the order of the Harpoon register list."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
