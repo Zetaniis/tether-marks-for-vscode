@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { getSortedAndFilteredMarks, Mark, BasicMarksSettings, defaultBasicMarksSettings, Mode } from 'tether-marks-core';
+import * as path from 'path';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -52,8 +53,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 	function createAndShowMarkQuickPick(marks: Mark[], mode: Mode) {
 		const quickPickItems: vscode.QuickPickItem[] = marks.map((mark) => {
+			const fileName = path.basename(mark.filePath);
+			const fileExtension = path.extname(mark.filePath).substring(1);
+			const directoryPath = path.dirname(mark.filePath);
+			const iconPath = vscode.ThemeIcon.File
+			
+			
+			// console.log(`File Name: ${fileName}`);
+			// console.log(`Directory Path: ${directoryPath}`);
 			return {
-				label: mark.symbol + " | " + mark.filePath, mark: mark
+				label: mark.symbol + " | " + fileName, description: directoryPath, mark: mark
 			}
 		});
 
@@ -97,6 +106,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		addOrOverwriteMark({ symbol: markSymbol, filePath: filePath.fsPath });
 	}
+
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
