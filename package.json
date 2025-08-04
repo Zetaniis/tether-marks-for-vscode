@@ -32,6 +32,12 @@
       {
         "command": "tether-marks-for-vscode.delete-mark",
         "title": "Tether marks: Delete mark"
+      },
+      {
+        "key": "ctrl+k",
+        "command": "tether-marks-for-vscode.triggerKey",
+        "args": "C-d",
+        "when": "whichKeyVisible"
       }
     ],
     "configuration": {
@@ -42,9 +48,8 @@
           "type": "string",
           "default": "qazwsxedcrfvtgbyhnujmikolp",
           "description": "Key symbols to be used as registers. Only include symbols that you can input with a single keystroke."
-
         },
-        "tetherMarks.registerSortByList":  {
+        "tetherMarks.registerSortByList": {
           "type": "boolean",
           "default": false,
           "description": "Sort marks by the order of the key symbols in the register list. If disabled, marks will be sorted alphabetically according to the current locale."

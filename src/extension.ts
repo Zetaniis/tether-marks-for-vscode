@@ -50,6 +50,12 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}
 
+	const deleteMark = (markSymbol: string) => {
+		const marks = getMarks() ?? [];
+		const filteredMarks = marks.filter((m) => m.symbol !== markSymbol);
+		setMarks(filteredMarks);
+	}
+
 
 	function createAndShowMarkQuickPick(marks: Mark[], mode: Mode) {
 		const quickPickItems: vscode.QuickPickItem[] = marks.map((mark) => {
@@ -78,7 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
 				gotoFileInMark(symbol);
 			}
 			else if (mode === 'delete') {
-
+				deleteMark(symbol);
 			}
 		}
 
@@ -140,9 +146,8 @@ export function activate(context: vscode.ExtensionContext) {
 		createAndShowMarkQuickPick(marks, 'goto');
 	});
 	const disposable3 = vscode.commands.registerCommand('tether-marks-for-vscode.delete-mark', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from tether-marks-for-vscode!');
+		const marks = getSortedAndFilteredMarks(getMarks() ?? [], false, getMarkSettings());
+		createAndShowMarkQuickPick(marks, 'delete');
 	});
 	const disposable4 = vscode.commands.registerCommand('tether-marks-for-vscode.add-file-to-harpoon', () => {
 		// The code you place here will be executed every time your command is executed
