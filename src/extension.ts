@@ -89,13 +89,13 @@ export function activate(context: vscode.ExtensionContext) {
 		customQuickPick.show();
 	};
 
-	const setCurrentFileToMark = (markSymbol: string) => {
-		const filePath = vscode.window.activeTextEditor?.document.fileName;
-		if (!filePath) {
+	async function setCurrentFileToMark(markSymbol: string) {
+		const filePath = vscode.window.activeTextEditor?.document.uri;
+		if (!filePath || filePath.scheme !== 'file') {
 			vscode.window.showInformationMessage('Tether marks currently only handles files.');
 			return;
-		};
-		addOrOverwriteMark({ symbol: markSymbol, filePath: filePath });
+		}
+		addOrOverwriteMark({ symbol: markSymbol, filePath: filePath.fsPath });
 	}
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
