@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { getSortedAndFilteredMarks, Mark, BasicMarksSettings, defaultBasicMarksSettings, Mode } from 'tether-marks-core';
+import { getSortedAndFilteredMarks, Mark, BasicMarksSettings, defaultBasicMarksSettings, Mode, findFirstUnusedRegister, removeGapsForHarpoonMarks } from 'tether-marks-core';
 import * as path from 'path';
 
 // This method is called when your extension is activated
@@ -52,10 +52,31 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const deleteMark = (markSymbol: string) => {
 		const marks = getMarks() ?? [];
-		const filteredMarks = marks.filter((m) => m.symbol !== markSymbol);
+		let filteredMarks = marks.filter((m) => m.symbol !== markSymbol);
+		if (getMarkSettings().harpoonRegisterGapRemoval){
+			filteredMarks = removeGapsForHarpoonMarks(filteredMarks, getMarkSettings().harpoonRegisterList);
+		}
 		setMarks(filteredMarks);
 	}
 
+	async function setCurrentFileToMark(markSymbol: string) {
+		const filePath = vscode.window.activeTextEditor?.document.uri;
+		if (!filePath || filePath.scheme !== 'file') {
+			vscode.window.showInformationMessage('Tether marks currently only handles files.');
+			return;
+		}
+		addOrOverwriteMark({ symbol: markSymbol, filePath: filePath.fsPath });
+	}
+
+	const addCurrentFileToHarpoon = () => {
+		const symbol = findFirstUnusedRegister(getMarks() ?? [], getMarkSettings().harpoonRegisterList);
+		if (!symbol){
+			vscode.window.showInformationMessage('No more harpoon registers available');
+			return;
+		}
+		vscode.window.showInformationMessage('Added file to harpoon mark: ' + symbol);
+		setCurrentFileToMark(symbol);
+	};
 
 	function createAndShowMarkQuickPick(marks: Mark[], mode: Mode) {
 		const quickPickItems: vscode.QuickPickItem[] = marks.map((mark) => {
@@ -117,14 +138,6 @@ export function activate(context: vscode.ExtensionContext) {
 		qp.show();
 	};
 
-	async function setCurrentFileToMark(markSymbol: string) {
-		const filePath = vscode.window.activeTextEditor?.document.uri;
-		if (!filePath || filePath.scheme !== 'file') {
-			vscode.window.showInformationMessage('Tether marks currently only handles files.');
-			return;
-		}
-		addOrOverwriteMark({ symbol: markSymbol, filePath: filePath.fsPath });
-	}
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -132,29 +145,8 @@ export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('tether-marks-for-vscode.set-mark', () => {
 		const marks = getSortedAndFilteredMarks(getMarks() ?? [], false, getMarkSettings());
 		createAndShowMarkQuickPick(marks, 'set');
-
-		// const chosen = vscode.window.showQuickPick(quickPickItems);
-		// console.log(chosen);
-		// const options = [
-		// 	{ label: 'A - Item 1' },
-		// 	{ label: 'B - Item 2' },
-		// 	{ label: 'C - Item 3' }
-		// ];
-
-		// const picker = vscode.window.showQuickPick(options, {
-		// 	onDidSelectItem: item => {
-		// 		console.log(`Selected: ${item}`);
-		// 	}
-		// });
-		// picker.then(selection => {
-		// 	if (selection) {
-		// 		console.log(`Selected: ${selection.label}`);
-		// 	}
-		// });
 	});
 	const disposable2 = vscode.commands.registerCommand('tether-marks-for-vscode.go-to-mark', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
 		const marks = getSortedAndFilteredMarks(getMarks() ?? [], false, getMarkSettings());
 		createAndShowMarkQuickPick(marks, 'goto');
 	});
@@ -163,14 +155,11 @@ export function activate(context: vscode.ExtensionContext) {
 		createAndShowMarkQuickPick(marks, 'delete');
 	});
 	const disposable4 = vscode.commands.registerCommand('tether-marks-for-vscode.add-file-to-harpoon', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from tether-marks-for-vscode!');
+		addCurrentFileToHarpoon();
 	});
 	const disposable5 = vscode.commands.registerCommand('tether-marks-for-vscode.go-to-harpoon-mark', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from tether-marks-for-vscode!');
+		const marks = getSortedAndFilteredMarks(getMarks() ?? [], true, getMarkSettings());
+		createAndShowMarkQuickPick(marks, 'goto');
 	});
 
 	context.subscriptions.push(disposable);
