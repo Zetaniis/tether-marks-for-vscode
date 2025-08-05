@@ -4,19 +4,16 @@ import * as vscode from 'vscode';
 import { getSortedAndFilteredMarks, Mark, BasicMarksSettings, defaultBasicMarksSettings, Mode, findFirstUnusedRegister, removeGapsForHarpoonMarks } from 'tether-marks-core';
 import * as path from 'path';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "tether-marks-for-vscode" is now active!');
-
-	const getMarks = () => { return context.globalState.get("marks") as Mark[] | undefined };
-	const setMarks = (marks: Mark[]) => { return context.globalState.update("marks", marks) };
-	const getMarksWorkspace = () => { return context.workspaceState.get("marks") as Mark[] | undefined };
-	const setMarksWorkspace = (marks: Mark[]) => { return context.workspaceState.update("marks", marks) };
-	const getMarkSettings = (() => {
+class PluginOperator {
+	public context: vscode.ExtensionContext;
+	constructor(context: vscode.ExtensionContext) {
+		this.context = context;
+	}
+	public getMarks = () => { return this.context.globalState.get("marks") as Mark[] | undefined };
+	public setMarks = (marks: Mark[]) => { return this.context.globalState.update("marks", marks) };
+	public getMarksWorkspace = () => { return this.context.workspaceState.get("marks") as Mark[] | undefined };
+	public setMarksWorkspace = (marks: Mark[]) => { return this.context.workspaceState.update("marks", marks) };
+	public getMarkSettings = (() => {
 		const config = vscode.workspace.getConfiguration();
 		const settings: any = { ...defaultBasicMarksSettings };
 		for (const key of Object.keys(defaultBasicMarksSettings)) {
@@ -28,18 +25,18 @@ export function activate(context: vscode.ExtensionContext) {
 		return settings;
 	});
 
-	const addOrOverwriteMark = (mark: Mark) => {
-		const marks = getMarks() ?? [];
+	public addOrOverwriteMark = (mark: Mark) => {
+		const marks = this.getMarksWorkspace() ?? [];
 		const index = marks.findIndex((m) => m.symbol === mark.symbol);
 		if (index === -1) {
 			marks.push(mark);
 		} else {
 			marks[index] = mark;
 		}
-		setMarks(marks);
+		this.setMarksWorkspace(marks);
 	};
-	const gotoFileInMark = (markSymbol: string) => {
-		const marks = getMarks() ?? [];
+	public gotoFileInMark = (markSymbol: string) => {
+		const marks = this.getMarksWorkspace() ?? [];
 		const mark = marks.find((m) => m.symbol === markSymbol);
 		if (mark) {
 			vscode.commands.executeCommand('vscode.open', vscode.Uri.file(mark.filePath));
@@ -50,36 +47,57 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}
 
-	const deleteMark = (markSymbol: string) => {
-		const marks = getMarks() ?? [];
+	public deleteMark = (markSymbol: string) => {
+		const marks = this.getMarksWorkspace() ?? [];
 		let filteredMarks = marks.filter((m) => m.symbol !== markSymbol);
-		if (getMarkSettings().harpoonRegisterGapRemoval){
-			filteredMarks = removeGapsForHarpoonMarks(filteredMarks, getMarkSettings().harpoonRegisterList);
+		if (this.getMarkSettings().harpoonRegisterGapRemoval) {
+			filteredMarks = removeGapsForHarpoonMarks(filteredMarks, this.getMarkSettings().harpoonRegisterList);
 		}
-		setMarks(filteredMarks);
+		this.setMarksWorkspace(filteredMarks);
 	}
 
-	async function setCurrentFileToMark(markSymbol: string) {
+	public async setCurrentFileToMark(markSymbol: string) {
 		const filePath = vscode.window.activeTextEditor?.document.uri;
 		if (!filePath || filePath.scheme !== 'file') {
 			vscode.window.showInformationMessage('Tether marks currently only handles files.');
 			return;
 		}
-		addOrOverwriteMark({ symbol: markSymbol, filePath: filePath.fsPath });
+		this.addOrOverwriteMark({ symbol: markSymbol, filePath: filePath.fsPath });
 	}
 
-	const addCurrentFileToHarpoon = () => {
-		const symbol = findFirstUnusedRegister(getMarks() ?? [], getMarkSettings().harpoonRegisterList);
-		if (!symbol){
+	public addCurrentFileToHarpoon = () => {
+		const symbol = findFirstUnusedRegister(this.getMarksWorkspace() ?? [], this.getMarkSettings().harpoonRegisterList);
+		if (!symbol) {
 			vscode.window.showInformationMessage('No more harpoon registers available');
 			return;
 		}
 		vscode.window.showInformationMessage('Added file to harpoon mark: ' + symbol);
-		setCurrentFileToMark(symbol);
+		this.setCurrentFileToMark(symbol);
 	};
+}
 
-	function createAndShowMarkQuickPick(marks: Mark[], mode: Mode) {
-		const quickPickItems: vscode.QuickPickItem[] = marks.map((mark) => {
+
+interface quickPickMarkItem extends vscode.QuickPickItem {
+	mark: Mark
+}
+
+class MarkQuickPickWarpper {
+	public qp: vscode.QuickPick<quickPickMarkItem> | null = null;
+	public mode: Mode | null = null;
+	public isHarpoon: boolean = false;
+	public operator: PluginOperator;
+
+	constructor(operator: PluginOperator) {
+		this.operator = operator;
+
+	}
+	public createAndShowMarkQuickPick(mode: Mode, isHarpoon: boolean = false) {
+		this.mode = mode;
+		this.isHarpoon = isHarpoon;
+
+		const marks = getSortedAndFilteredMarks(this.operator.getMarksWorkspace() ?? [], isHarpoon, this.operator.getMarkSettings());
+
+		const quickPickItems: quickPickMarkItem[] = marks.map((mark) => {
 			const fileName = path.basename(mark.filePath);
 			const fileExtension = path.extname(mark.filePath).substring(1);
 			const directoryPath = path.dirname(mark.filePath);
@@ -93,73 +111,129 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 
-		const qp = vscode.window.createQuickPick();
-		qp.items = quickPickItems
-		qp.canSelectMany = false;
+		this.qp = vscode.window.createQuickPick();
+		this.qp.items = quickPickItems
+		this.qp.canSelectMany = false;
 
 		const modeHandling = (symbol: string) => {
 			if (mode === 'set') {
-				setCurrentFileToMark(symbol);
+				this.operator.setCurrentFileToMark(symbol);
 			}
 			else if (mode === 'goto') {
-				gotoFileInMark(symbol);
+				this.operator.gotoFileInMark(symbol);
 			}
 			else if (mode === 'delete') {
-				deleteMark(symbol);
+				this.operator.deleteMark(symbol);
 			}
 		}
 
-		qp.onDidChangeValue((value) => {
+		this.qp.onDidChangeValue((value) => {
 			modeHandling(value);
-			qp.dispose();
+			this.qp?.dispose();
 		});
 
-		qp.onDidAccept(() => {
-			// This doesn't confrom to the quickPickItem interface, but kind of works because I embed the mark object above in quickPickItems. Hopefully won't break. 
-			// @ts-expect-error
-			const selectedMark = qp.selectedItems[0].mark;
-			modeHandling(selectedMark.symbol);
-			qp.dispose();
+		this.qp.onDidAccept(() => {
+			const selectedMark = this.qp?.selectedItems[0].mark;
+			if (selectedMark) {
+				modeHandling(selectedMark.symbol);
+			}
+			this.qp?.dispose();
 		});
 
-		qp.onDidChangeSelection(selection => {
+		this.qp.onDidChangeSelection(selection => {
 			// BAD: this will run when the selection changes,
 			// e.g., just from arrow keys or Ctrl+release
 		});
 
-		qp.title = "Tether Marks";
+		this.qp.title = "Tether Marks";
 
-		qp.onDidHide(() => {
-			console.log("QuickPick closed");
+		this.qp.onDidHide(() => {
+			// console.log("QuickPick closed");
 			vscode.commands.executeCommand('setContext', 'tether-marks-for-vscode.inMarkList', false);
+			// not sure if this is a good idea
+			this.qp?.dispose();
 		})
 
+		this.qp.onDidChangeActive(e => {
+			// console.log(e);
+		});
+
 		vscode.commands.executeCommand('setContext', 'tether-marks-for-vscode.inMarkList', true);
-		qp.show();
+		this.qp.show();
 	};
 
+	public refreshQP() {
+		if (!this.qp) return;
+
+		const marks = getSortedAndFilteredMarks(this.operator.getMarksWorkspace() ?? [], this.isHarpoon, this.operator.getMarkSettings());
+
+		const quickPickItems: quickPickMarkItem[] = marks.map((mark) => {
+			const fileName = path.basename(mark.filePath);
+			const fileExtension = path.extname(mark.filePath).substring(1);
+			const directoryPath = path.dirname(mark.filePath);
+			const iconPath = vscode.ThemeIcon.File
+
+
+			// console.log(`File Name: ${fileName}`);
+			// console.log(`Directory Path: ${directoryPath}`);
+			return {
+				label: mark.symbol + " | " + fileName, description: directoryPath, mark: mark
+			}
+		});
+
+		this.qp.items = quickPickItems
+	};
+
+	public deleteHighlightedMark() {
+		if (!this.qp) {
+			vscode.window.showErrorMessage("This shouldn't be called when mark list is not open");
+			return;
+		}
+		if (this.qp.activeItems.length === 0) {
+			return;
+		}
+		const symbol = this.qp.activeItems[0].mark.symbol;
+		this.operator.deleteMark(symbol)
+		vscode.window.showInformationMessage('Deleted mark: ' + symbol);
+		this.refreshQP();
+	}
+
+}
+
+// This method is called when your extension is activated
+// Your extension is activated the very first time the command is executed
+export function activate(context: vscode.ExtensionContext) {
+
+	// Use the console to output diagnostic information (console.log) and errors (console.error)
+	// This line of code will only be executed once when your extension is activated
+	// console.log('Congratulations, your extension "tether-marks-for-vscode" is now active!');
+
+	const op = new PluginOperator(context);
+	const qpw = new MarkQuickPickWarpper(op);
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const disposable = vscode.commands.registerCommand('tether-marks-for-vscode.set-mark', () => {
-		const marks = getSortedAndFilteredMarks(getMarks() ?? [], false, getMarkSettings());
-		createAndShowMarkQuickPick(marks, 'set');
+		qpw.createAndShowMarkQuickPick('set');
 	});
 	const disposable2 = vscode.commands.registerCommand('tether-marks-for-vscode.go-to-mark', () => {
-		const marks = getSortedAndFilteredMarks(getMarks() ?? [], false, getMarkSettings());
-		createAndShowMarkQuickPick(marks, 'goto');
+		qpw.createAndShowMarkQuickPick('goto');
 	});
 	const disposable3 = vscode.commands.registerCommand('tether-marks-for-vscode.delete-mark', () => {
-		const marks = getSortedAndFilteredMarks(getMarks() ?? [], false, getMarkSettings());
-		createAndShowMarkQuickPick(marks, 'delete');
+		qpw.createAndShowMarkQuickPick('delete');
 	});
 	const disposable4 = vscode.commands.registerCommand('tether-marks-for-vscode.add-file-to-harpoon', () => {
-		addCurrentFileToHarpoon();
+		op.addCurrentFileToHarpoon();
 	});
 	const disposable5 = vscode.commands.registerCommand('tether-marks-for-vscode.go-to-harpoon-mark', () => {
-		const marks = getSortedAndFilteredMarks(getMarks() ?? [], true, getMarkSettings());
-		createAndShowMarkQuickPick(marks, 'goto');
+		qpw.createAndShowMarkQuickPick('goto', true);
+	});
+	const disposable6 = vscode.commands.registerCommand('tether-marks-for-vscode.triggerKey', (args) => {
+		// console.log("triggerKey: ", args);
+		if (args == 'delete-highlighted-mark') {
+			qpw.deleteHighlightedMark();
+		}
 	});
 
 	context.subscriptions.push(disposable);
@@ -167,6 +241,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable3);
 	context.subscriptions.push(disposable4);
 	context.subscriptions.push(disposable5);
+	context.subscriptions.push(disposable6);
 }
 
 // This method is called when your extension is deactivated

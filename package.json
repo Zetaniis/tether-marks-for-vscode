@@ -12,6 +12,14 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "keybindings": [
+      {
+        "key": "ctrl+d",
+        "command": "tether-marks-for-vscode.triggerKey",
+        "args": "delete-highlighted-mark",
+        "when": "tether-marks-for-vscode.inMarkList"
+      }
+    ],
     "commands": [
       {
         "command": "tether-marks-for-vscode.set-mark",
@@ -32,12 +40,6 @@
       {
         "command": "tether-marks-for-vscode.delete-mark",
         "title": "Tether marks: Delete mark"
-      },
-      {
-        "key": "ctrl+k",
-        "command": "tether-marks-for-vscode.triggerKey",
-        "args": "C-d",
-        "when": "whichKeyVisible"
       }
     ],
     "configuration": {
