@@ -63,8 +63,8 @@ export function activate(context: vscode.ExtensionContext) {
 			const fileExtension = path.extname(mark.filePath).substring(1);
 			const directoryPath = path.dirname(mark.filePath);
 			const iconPath = vscode.ThemeIcon.File
-			
-			
+
+
 			// console.log(`File Name: ${fileName}`);
 			// console.log(`Directory Path: ${directoryPath}`);
 			return {
@@ -72,9 +72,9 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 
-		const customQuickPick = vscode.window.createQuickPick();
-		customQuickPick.items = quickPickItems
-		customQuickPick.canSelectMany = false;
+		const qp = vscode.window.createQuickPick();
+		qp.items = quickPickItems
+		qp.canSelectMany = false;
 
 		const modeHandling = (symbol: string) => {
 			if (mode === 'set') {
@@ -88,20 +88,33 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 
-		customQuickPick.onDidChangeValue((value) => {
+		qp.onDidChangeValue((value) => {
 			modeHandling(value);
-			customQuickPick.dispose();
+			qp.dispose();
 		});
 
-		customQuickPick.onDidAccept(() => {
+		qp.onDidAccept(() => {
 			// This doesn't confrom to the quickPickItem interface, but kind of works because I embed the mark object above in quickPickItems. Hopefully won't break. 
 			// @ts-expect-error
-			const selectedMark = customQuickPick.selectedItems[0].mark;
+			const selectedMark = qp.selectedItems[0].mark;
 			modeHandling(selectedMark.symbol);
-			customQuickPick.dispose();
+			qp.dispose();
 		});
 
-		customQuickPick.show();
+		qp.onDidChangeSelection(selection => {
+			// BAD: this will run when the selection changes,
+			// e.g., just from arrow keys or Ctrl+release
+		});
+
+		qp.title = "Tether Marks";
+
+		qp.onDidHide(() => {
+			console.log("QuickPick closed");
+			vscode.commands.executeCommand('setContext', 'tether-marks-for-vscode.inMarkList', false);
+		})
+
+		vscode.commands.executeCommand('setContext', 'tether-marks-for-vscode.inMarkList', true);
+		qp.show();
 	};
 
 	async function setCurrentFileToMark(markSymbol: string) {
