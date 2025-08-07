@@ -1,6 +1,6 @@
 import { Mark, defaultBasicMarksSettings, removeGapsForHarpoonMarks, findFirstUnusedRegister } from 'tether-marks-core';
 import * as vscode from 'vscode';
-import { isInWorkspace } from './vscodeUtils';
+import { isFILe as isFileOnDisk, isInWorkspace } from './vscodeUtils';
 import * as path from 'node:path';
 
 export class PluginOperator {
@@ -43,8 +43,8 @@ export class PluginOperator {
 				return;
 			}
 
-			// TODO: hacky, will break on multiple workspaces that have the files with the same relative paths,
-			// consider saving workspace path and relative file path in marks 
+			// TODO: hacky, will break on workspace with multiple folders that have the files with the same relative paths,
+			// consider saving folder path and relative file path in marks
 			for (const workspace of vscode.workspace.workspaceFolders ?? []) {
 				if (workspace) {
 					const absPath = path.join(workspace.uri.fsPath, mark.filePath);
@@ -71,7 +71,7 @@ export class PluginOperator {
 	public async setCurrentFileToMark(markSymbol: string) {
 		const fileUri = vscode.window.activeTextEditor?.document.uri;
 
-		if (!fileUri || fileUri.scheme !== 'file') {
+		if (!fileUri || !(await isFileOnDisk(fileUri))) {
 			vscode.window.showInformationMessage('Tether marks currently only handles files.');
 			return;
 		}
