@@ -85,7 +85,7 @@ export class MarkQuickPickWarpper {
 		this.qp.show();
 	};
 
-	public refreshQP() {
+	public refreshQP(pickedItemIndex: number = 0) {
 		if (!this.qp) return;
 
 		const marks = getSortedAndFilteredMarks(this.operator.getMarksWorkspace() ?? [], this.isHarpoon, this.operator.getMarkSettings());
@@ -97,14 +97,21 @@ export class MarkQuickPickWarpper {
 			const iconPath = vscode.ThemeIcon.File;
 
 
-			// console.log(`File Name: ${fileName}`);
-			// console.log(`Directory Path: ${directoryPath}`);
-			return {
-				label: mark.symbol + " | " + fileName, description: directoryPath, mark: mark
+			const item: quickPickMarkItem = {
+				label: mark.symbol + " | " + fileName,
+				description: directoryPath,
+				mark: mark,
 			};
+
+			return item;
 		});
 
+
 		this.qp.items = quickPickItems;
+		if (this.qp.items.length !== 0) {
+			const boundedIndex = Math.min(Math.max(pickedItemIndex, 0), this.qp.items.length - 1);
+			this.qp.activeItems = [this.qp.items[boundedIndex]];
+		}
 	};
 
 	public deleteHighlightedMark() {
@@ -115,9 +122,12 @@ export class MarkQuickPickWarpper {
 		if (this.qp.activeItems.length === 0) {
 			return;
 		}
-		const symbol = this.qp.activeItems[0].mark.symbol;
-		this.operator.deleteMark(symbol);
-		vscode.window.showInformationMessage('Deleted mark: ' + symbol);
-		this.refreshQP();
+		const symbolToDelete = this.qp.activeItems[0].mark.symbol;
+		this.operator.deleteMark(symbolToDelete);
+		vscode.window.showInformationMessage('Deleted mark: ' + symbolToDelete);
+
+		// making sure that the list highlights the item with the index of the deleted item if possible
+		const ind = this.qp.items.findIndex((item) => item.mark.symbol === symbolToDelete);
+		this.refreshQP(ind);
 	}
 }
