@@ -1,5 +1,7 @@
 import { Mark, defaultBasicMarksSettings, removeGapsForHarpoonMarks, findFirstUnusedRegister } from 'tether-marks-core';
 import * as vscode from 'vscode';
+import { isInWorkspace } from './vscodeUtils';
+import * as path from 'node:path';
 
 export class PluginOperator {
 	public context: vscode.ExtensionContext;
@@ -32,11 +34,25 @@ export class PluginOperator {
 		}
 		this.setMarksWorkspace(marks);
 	};
-	public gotoFileInMark = (markSymbol: string) => {
+	public gotoFileInMark = async (markSymbol: string) => {
 		const marks = this.getMarksWorkspace() ?? [];
 		const mark = marks.find((m) => m.symbol === markSymbol);
 		if (mark) {
-			vscode.commands.executeCommand('vscode.open', vscode.Uri.file(mark.filePath));
+			if (path.isAbsolute(mark.filePath)) {
+				vscode.commands.executeCommand('vscode.open', vscode.Uri.file(mark.filePath));
+				return;
+			}
+
+			// TODO: hacky, will break on multiple workspaces that have the files with the same relative paths,
+			// consider saving workspace path and relative file path in marks 
+			for (const workspace of vscode.workspace.workspaceFolders ?? []) {
+				if (workspace) {
+					const absPath = path.join(workspace.uri.fsPath, mark.filePath);
+					vscode.commands.executeCommand('vscode.open', vscode.Uri.file(absPath));
+					break;
+				}
+			}
+
 		}
 		else {
 			vscode.window.showInformationMessage('Mark not found');
@@ -53,12 +69,15 @@ export class PluginOperator {
 	};
 
 	public async setCurrentFileToMark(markSymbol: string) {
-		const filePath = vscode.window.activeTextEditor?.document.uri;
-		if (!filePath || filePath.scheme !== 'file') {
+		const fileUri = vscode.window.activeTextEditor?.document.uri;
+
+		if (!fileUri || fileUri.scheme !== 'file') {
 			vscode.window.showInformationMessage('Tether marks currently only handles files.');
 			return;
 		}
-		this.addOrOverwriteMark({ symbol: markSymbol, filePath: filePath.fsPath });
+
+		const filePath = isInWorkspace(fileUri) ? vscode.workspace.asRelativePath(fileUri, false) : fileUri.fsPath;
+		this.addOrOverwriteMark({ symbol: markSymbol, filePath: filePath });
 	}
 
 	public addCurrentFileToHarpoon = () => {
