@@ -1,11 +1,12 @@
 {
   "name": "tether-marks-for-vscode",
-  "displayName": "tether-marks-for-vscode",
+  "displayName": "Tether marks for vscode",
   "description": "Assign files to key registers, and quickly jump to them with a single keystroke. Inspired by vim global marks functionality and Harpoon Neovim plugin.",
   "keywords": ["tether-marks", "marks", "harpoon", "vim"],
   "version": "1.0.0",
   "publisher": "Zetaniis",
   "repository": {"url": "https://github.com/Zetaniis/tether-marks-for-vscode"},
+  "license": "MIT",
   "engines": {
     "vscode": "^1.102.0"
   },
