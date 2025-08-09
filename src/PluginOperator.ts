@@ -1,6 +1,6 @@
 import { Mark, defaultBasicMarksSettings, removeGapsForHarpoonMarks, findFirstUnusedRegister } from 'tether-marks-core';
 import * as vscode from 'vscode';
-import { isFILe as isFileOnDisk, isInWorkspace } from './vscodeUtils';
+import { isFile as isFileOnDisk, isInWorkspace } from './vscodeUtils';
 import * as path from 'node:path';
 
 export class PluginOperator {
