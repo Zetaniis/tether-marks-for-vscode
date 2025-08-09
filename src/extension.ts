@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { PluginOperator } from './PluginOperator';
-import { MarkQuickPickWarpper } from './MarkQuickPickWarpper';
+import { MarkQuickPickWrapper } from './MarkQuickPickWrapper';
 
 export function activate(context: vscode.ExtensionContext) {
 	const op = new PluginOperator(context);
-	const qpw = new MarkQuickPickWarpper(op);
+	const qpw = new MarkQuickPickWrapper(op);
 
 	const disposable = vscode.commands.registerCommand('tether-marks-for-vscode.set-mark', () => {
 		qpw.createAndShowMarkQuickPick('set');

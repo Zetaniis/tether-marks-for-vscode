@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { quickPickMarkItem } from './types';
 import { PluginOperator } from './PluginOperator';
 
-export class MarkQuickPickWarpper {
+export class MarkQuickPickWrapper {
 	public qp: vscode.QuickPick<quickPickMarkItem> | null = null;
 	public mode: Mode | null = null;
 	public isHarpoon: boolean = false;
