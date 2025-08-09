@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { Mode, getSortedAndFilteredMarks } from 'tether-marks-core';
+import { Mark, Mode, getSortedAndFilteredMarks } from 'tether-marks-core';
 import * as vscode from 'vscode';
 import { quickPickMarkItem } from './types';
 import { PluginOperator } from './PluginOperator';
@@ -20,19 +20,7 @@ export class MarkQuickPickWarpper {
 
 		const marks = getSortedAndFilteredMarks(this.operator.getMarksWorkspace() ?? [], isHarpoon, this.operator.getMarkSettings());
 
-		const quickPickItems: quickPickMarkItem[] = marks.map((mark) => {
-			const fileName = path.basename(mark.filePath);
-			const fileExtension = path.extname(mark.filePath).substring(1);
-			const directoryPath = path.dirname(mark.filePath);
-			const iconPath = vscode.ThemeIcon.File;
-
-
-			// console.log(`File Name: ${fileName}`);
-			// console.log(`Directory Path: ${directoryPath}`);
-			return {
-				label: mark.symbol + " | " + fileName, description: directoryPath, mark: mark
-			};
-		});
+		const quickPickItems: quickPickMarkItem[] = this.prepareQuickPickItems(marks);
 
 		this.qp = vscode.window.createQuickPick();
 		this.qp.items = quickPickItems;
@@ -85,27 +73,28 @@ export class MarkQuickPickWarpper {
 		this.qp.show();
 	};
 
+	private prepareQuickPickItems(marks : Mark[]): quickPickMarkItem[] {
+		return marks.map((mark) => {
+			const fileName = path.basename(mark.filePath);
+			const fileExtension = path.extname(mark.filePath).substring(1);
+			const directoryPath = path.dirname(mark.filePath) === "." ? "" : path.dirname(mark.filePath);
+			const iconPath = vscode.ThemeIcon.File;
+
+
+			// console.log(`File Name: ${fileName}`);
+			// console.log(`Directory Path: ${directoryPath}`);
+			return {
+				label: mark.symbol + "\t" + fileName, description: directoryPath, mark: mark
+			};
+		});
+	}
+
 	public refreshQP(pickedItemIndex: number = 0) {
 		if (!this.qp) return;
 
 		const marks = getSortedAndFilteredMarks(this.operator.getMarksWorkspace() ?? [], this.isHarpoon, this.operator.getMarkSettings());
 
-		const quickPickItems: quickPickMarkItem[] = marks.map((mark) => {
-			const fileName = path.basename(mark.filePath);
-			const fileExtension = path.extname(mark.filePath).substring(1);
-			const directoryPath = path.dirname(mark.filePath);
-			const iconPath = vscode.ThemeIcon.File;
-
-
-			const item: quickPickMarkItem = {
-				label: mark.symbol + " | " + fileName,
-				description: directoryPath,
-				mark: mark,
-			};
-
-			return item;
-		});
-
+		const quickPickItems = this.prepareQuickPickItems(marks);
 
 		this.qp.items = quickPickItems;
 		if (this.qp.items.length !== 0) {
