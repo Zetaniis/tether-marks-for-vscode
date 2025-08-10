@@ -4,6 +4,12 @@ import * as vscode from 'vscode';
 import { QuickPickMarkItem, VscodeMark } from './types';
 import { PluginOperator } from './PluginOperator';
 
+const quickPickTitleByMode = {
+	'set': 'Set mark',
+	'goto': 'Go to mark',
+	'delete': 'Delete mark'
+};
+
 export class MarkQuickPickWrapper {
 	public qp: vscode.QuickPick<QuickPickMarkItem> | null = null;
 	public mode: Mode | null = null;
@@ -56,7 +62,7 @@ export class MarkQuickPickWrapper {
 			// e.g., just from arrow keys or Ctrl+release
 		});
 
-		this.qp.title = "Tether Marks";
+		this.qp.title = "Tether Marks - " + quickPickTitleByMode[this.mode] + (isHarpoon ? " (Harpoon)" : "");
 
 		this.qp.onDidHide(() => {
 			// console.log("QuickPick closed");
