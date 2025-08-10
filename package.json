@@ -59,8 +59,8 @@
       "properties": {
         "tetherMarks.registerList": {
           "type": "string",
-          "default": "qazwsxedcrfvtgbyhnujmikolp",
-          "description": "Key symbols to be used as registers. Only include symbols that you can input with a single keystroke."
+          "default": "qazwsxedcrfvtgbyhnujmikolpQWERASDFZXCVTYUIGHJKBNMOPL",
+          "description": "Key symbols to be used as registers. Only include symbols that you can input with a single keystroke (excluding modifier keys)."
         },
         "tetherMarks.registerSortByList": {
           "type": "boolean",
@@ -69,8 +69,8 @@
         },
         "tetherMarks.harpoonRegisterList": {
           "type": "string",
-          "default": "qwer",
-          "description": "Key symbols to be used as Harpoon registers. Only include symbols that you can input with a single keystroke."
+          "default": "12345",
+          "description": "Key symbols to be used as Harpoon registers. Only include symbols that you can input with a single keystroke (excluding modifier keys)."
         },
         "tetherMarks.harpoonRegisterSortByList": {
           "type": "boolean",
