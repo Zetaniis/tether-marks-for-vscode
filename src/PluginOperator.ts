@@ -1,17 +1,18 @@
-import { Mark, defaultBasicMarksSettings, removeGapsForHarpoonMarks, findFirstUnusedRegister } from 'tether-marks-core';
+import { defaultBasicMarksSettings, removeGapsForHarpoonMarks, findFirstUnusedRegister } from 'tether-marks-core';
 import * as vscode from 'vscode';
 import { isFile as isFileOnDisk, isInWorkspace } from './vscodeUtils';
 import * as path from 'node:path';
+import { VscodeMark } from './types';
 
 export class PluginOperator {
 	public context: vscode.ExtensionContext;
 	constructor(context: vscode.ExtensionContext) {
 		this.context = context;
 	}
-	public getMarks = () => { return this.context.globalState.get("marks") as Mark[] | undefined; };
-	public setMarks = (marks: Mark[]) => { return this.context.globalState.update("marks", marks); };
-	public getMarksWorkspace = () => { return this.context.workspaceState.get("marks") as Mark[] | undefined; };
-	public setMarksWorkspace = (marks: Mark[]) => { return this.context.workspaceState.update("marks", marks); };
+	public getMarks = () => { return this.context.globalState.get("marks") as VscodeMark[] | undefined; };
+	public setMarks = (marks: VscodeMark[]) => { return this.context.globalState.update("marks", marks); };
+	public getMarksWorkspace = () => { return this.context.workspaceState.get("marks") as VscodeMark[] | undefined; };
+	public setMarksWorkspace = (marks: VscodeMark[]) => { return this.context.workspaceState.update("marks", marks); };
 	public getMarkSettings = () => {
 		const config = vscode.workspace.getConfiguration();
 		const settings: any = { ...defaultBasicMarksSettings };
@@ -24,7 +25,7 @@ export class PluginOperator {
 		return settings;
 	};
 
-	public addOrOverwriteMark = (mark: Mark) => {
+	public addOrOverwriteMark = (mark: VscodeMark) => {
 		const marks = this.getMarksWorkspace() ?? [];
 		const index = marks.findIndex((m) => m.symbol === mark.symbol);
 		if (index === -1) {
@@ -38,25 +39,39 @@ export class PluginOperator {
 		const marks = this.getMarksWorkspace() ?? [];
 		const mark = marks.find((m) => m.symbol === markSymbol);
 		if (mark) {
-			if (path.isAbsolute(mark.filePath)) {
+			if (path.isAbsolute(mark.filePath) && mark.workspacePath === "") {
 				vscode.commands.executeCommand('vscode.open', vscode.Uri.file(mark.filePath));
 				return;
 			}
 
-			// TODO: hacky, will break on workspace with multiple folders that have the files with the same relative paths,
-			// consider saving folder path and relative file path in marks
-			for (const workspace of vscode.workspace.workspaceFolders ?? []) {
-				if (workspace) {
-					const absPath = path.join(workspace.uri.fsPath, mark.filePath);
-					vscode.commands.executeCommand('vscode.open', vscode.Uri.file(absPath));
-					break;
-				}
+			if (mark.workspacePath === "") {
+				vscode.window.showErrorMessage("This should not have happened: filePath is not abosolute and workspacePath is empty");
+				return
 			}
 
+			// const workspaceName = path.basename(mark.workspacePath);
+			// const workspace = vscode.workspace.workspaceFolders?.find((w) => w.name === workspaceName);		
+
+			// if (!workspace){
+			// 	vscode.window.showErrorMessage("Workspace not found for the mark" + markSymbol + ": " + mark.filePath + " in " + mark.workspacePath);
+			// 	return
+			// }
+
+
+			const absPath = path.join(mark.workspacePath, mark.filePath);
+			vscode.commands.executeCommand('vscode.open', vscode.Uri.file(absPath));
+
+			// // TODO: hacky, will break on workspace with multiple folders that have the files with the same relative paths,
+			// // consider saving folder path and relative file path in marks
+			// for (const workspace of vscode.workspace.workspaceFolders ?? []) {
+			// 	const absPath = path.join(workspace.uri.fsPath, mark.filePath);
+			// 	vscode.commands.executeCommand('vscode.open', vscode.Uri.file(absPath));
+			// 	break;
+			// }
+			return
 		}
-		else {
-			vscode.window.showInformationMessage('Mark not found');
-		}
+
+		vscode.window.showInformationMessage('Mark not found');
 	};
 
 	public deleteMark = (markSymbol: string) => {
@@ -68,25 +83,30 @@ export class PluginOperator {
 		this.setMarksWorkspace(filteredMarks);
 	};
 
-	public async setCurrentFileToMark(markSymbol: string) {
+	public async setCurrentFileToMark(markSymbol: string): Promise<boolean> {
 		const fileUri = vscode.window.activeTextEditor?.document.uri;
 
 		if (!fileUri || !(await isFileOnDisk(fileUri))) {
 			vscode.window.showInformationMessage('Tether marks currently only handles files.');
-			return;
+			return false;
 		}
 
-		const filePath = isInWorkspace(fileUri) ? vscode.workspace.asRelativePath(fileUri, false) : fileUri.fsPath;
-		this.addOrOverwriteMark({ symbol: markSymbol, filePath: filePath });
+		const workspacePath = vscode.workspace.getWorkspaceFolder(fileUri)?.uri?.path ?? "";
+		const filePath = workspacePath !== "" ? vscode.workspace.asRelativePath(fileUri, false) : fileUri.path;
+		this.addOrOverwriteMark({ symbol: markSymbol, filePath: filePath, workspacePath: workspacePath });
+		return true;
 	}
 
-	public addCurrentFileToHarpoon = () => {
+	public addCurrentFileToHarpoon = async () => {
 		const symbol = findFirstUnusedRegister(this.getMarksWorkspace() ?? [], this.getMarkSettings().harpoonRegisterList);
 		if (!symbol) {
 			vscode.window.showInformationMessage('No more harpoon registers available');
 			return;
 		}
-		vscode.window.showInformationMessage('Added file to harpoon mark: ' + symbol);
-		this.setCurrentFileToMark(symbol);
-	};
+		const success = await this.setCurrentFileToMark(symbol);
+		if (success) {
+			vscode.window.showInformationMessage('Added file to harpoon mark: ' + symbol);
+
+		}
+	}
 }

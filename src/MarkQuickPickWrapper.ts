@@ -1,11 +1,11 @@
 import * as path from 'path';
-import { Mark, Mode, getSortedAndFilteredMarks } from 'tether-marks-core';
+import { Mode, getSortedAndFilteredMarks } from 'tether-marks-core';
 import * as vscode from 'vscode';
-import { quickPickMarkItem } from './types';
+import { QuickPickMarkItem, VscodeMark } from './types';
 import { PluginOperator } from './PluginOperator';
 
 export class MarkQuickPickWrapper {
-	public qp: vscode.QuickPick<quickPickMarkItem> | null = null;
+	public qp: vscode.QuickPick<QuickPickMarkItem> | null = null;
 	public mode: Mode | null = null;
 	public isHarpoon: boolean = false;
 	public operator: PluginOperator;
@@ -20,7 +20,7 @@ export class MarkQuickPickWrapper {
 
 		const marks = getSortedAndFilteredMarks(this.operator.getMarksWorkspace() ?? [], isHarpoon, this.operator.getMarkSettings());
 
-		const quickPickItems: quickPickMarkItem[] = this.prepareQuickPickItems(marks);
+		const quickPickItems: QuickPickMarkItem[] = this.prepareQuickPickItems(marks);
 
 		this.qp = vscode.window.createQuickPick();
 		this.qp.items = quickPickItems;
@@ -73,18 +73,32 @@ export class MarkQuickPickWrapper {
 		this.qp.show();
 	};
 
-	private prepareQuickPickItems(marks : Mark[]): quickPickMarkItem[] {
+	private prepareQuickPickItems(marks : VscodeMark[]): QuickPickMarkItem[] {
 		return marks.map((mark) => {
 			const fileName = path.basename(mark.filePath);
-			const fileExtension = path.extname(mark.filePath).substring(1);
-			const directoryPath = path.dirname(mark.filePath) === "." ? "" : path.dirname(mark.filePath);
-			const iconPath = vscode.ThemeIcon.File;
+			// const fileExtension = path.extname(mark.filePath).substring(1);
 
+			// relative for files in workspaces, absolute for files outside workspaces
+			const fileDirectory = path.dirname(mark.filePath) === "." ? "" : path.dirname(mark.filePath);
+			// const iconPath = vscode.ThemeIcon.File;
 
-			// console.log(`File Name: ${fileName}`);
-			// console.log(`Directory Path: ${directoryPath}`);
+			const workspaceName = path.basename(mark.workspacePath ?? "") ?? "";
+			const isSingleWorkspace = vscode.workspace.workspaceFolders?.length === 1;
+
+			let description: string = "";
+
+			if (isSingleWorkspace) {
+				description = fileDirectory;
+			} else {
+				if (fileDirectory !== "") {
+					description = workspaceName ? `${workspaceName} • ${fileDirectory}` : fileDirectory;
+				} else {
+					description = workspaceName;
+				}
+			}
+
 			return {
-				label: mark.symbol + "\t" + fileName, description: directoryPath, mark: mark
+				label: mark.symbol + "\t" + fileName, description: description, mark: mark
 			};
 		});
 	}
