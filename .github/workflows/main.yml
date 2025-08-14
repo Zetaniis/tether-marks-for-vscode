@@ -1,0 +1,78 @@
+name: VSCE Release
+
+on:
+  push:
+    # Trigger on any semver tag, e.g., v1.2.3 or 1.2.3
+    tags:
+      - '*.*.*'
+  workflow_dispatch: # optional manual trigger
+    inputs:
+      tag:
+        required: false
+        description: 'Tag to release (optional, used for manual trigger)'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify publisher is set
+        run: |
+          if [ -z "$(jq -r '.publisher // empty' package.json)" ]; then
+            echo "Error: 'publisher' field is missing in package.json"
+            exit 1
+          fi
+
+      - name: Verify VSCE_PAT secret
+        run: |
+          if [ -z "${{ secrets.VSCE_PAT }}" ]; then
+            echo "Error: VSCE_PAT secret is missing"
+            exit 1
+          fi
+
+      - name: Determine version from tag
+        run: |
+          # Strip 'v' prefix if present
+          VERSION="${GITHUB_REF#refs/tags/}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Detected version: $VERSION"
+
+      - name: Build VSIX
+        run: npx vsce package
+
+      - name: Verify VSIX exists
+        run: |
+          VSIX_FILE=$(ls *.vsix | head -n 1)
+          if [ -z "$VSIX_FILE" ]; then
+            echo "Error: VSIX file not found after packaging"
+            exit 1
+          fi
+          echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: ${{ env.VSIX_FILE }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to VS Code Marketplace
+        run: npx vsce publish -p ${{ secrets.VSCE_PAT }}
